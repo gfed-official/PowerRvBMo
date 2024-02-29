@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
-    "fmt"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/vmware/govmomi"
@@ -14,13 +14,13 @@ import (
 )
 
 var (
-    GuildID       = flag.String("guild", "", "Guild ID")
-    Token         = flag.String("token", "", "Bot Token")
+	GuildID = flag.String("guild", "", "Guild ID")
+	Token   = flag.String("token", "", "Bot Token")
 
 	tomlConf      = Config{}
 	vSphereClient *govmomi.Client
 	ctx           = context.Background()
-    finder        = &find.Finder{}
+	finder        = &find.Finder{}
 
 	RevertCounter = map[string]int{}
 	RevertLimit   = 3
@@ -30,49 +30,51 @@ var s *discordgo.Session
 
 func init() { flag.Parse() }
 
+// vSphere init
 func init() {
-    var err error
-    s, err = discordgo.New("Bot " + *Token)
-    if err != nil {
-        log.Fatalf("Cannot create a new session: %v", err)
-    }
+	var err error
+	s, err = discordgo.New("Bot " + *Token)
+	if err != nil {
+		log.Fatalf("Cannot create a new session: %v", err)
+	}
 
 	ReadConfig(&tomlConf, "config.conf")
-    fmt.Println("Connecting to vSphere...")
+	fmt.Println("Connecting to vSphere...")
 	vSphereClient = Connect()
 	finder = find.NewFinder(vSphereClient.Client, true)
-    dc, err := finder.Datacenter(ctx, tomlConf.VSphereDatacenter)
-    finder.SetDatacenter(dc)
+	dc, err := finder.Datacenter(ctx, tomlConf.VSphereDatacenter)
+	finder.SetDatacenter(dc)
 }
 
+// discord init
 func init() {
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-        switch i.Type {
-        case discordgo.InteractionApplicationCommand:
-            if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-                h(s, i)
-            }
-        case discordgo.InteractionMessageComponent:
-            if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
-                h(s, i)
-            }
-        }
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
+				h(s, i)
+			}
+		}
 	})
 }
 
 func main() {
-    s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
 
-    err := s.Open()
-    if err != nil {
-        log.Fatalf("Cannot open a new session: %v", err)
-    }
+	err := s.Open()
+	if err != nil {
+		log.Fatalf("Cannot open a new session: %v", err)
+	}
 
-    s.Identify.Intents = discordgo.IntentsGuildMessages
+	s.Identify.Intents = discordgo.IntentsGuildMessages
 
-    fmt.Println(s.State)
+	fmt.Println(s.State)
 
 	log.Println("Adding commands...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))

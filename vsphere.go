@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
-    "fmt"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/soap"
 	"golang.org/x/net/context"
 )
 
+// Connect to vSphere and return client
 func Connect() *govmomi.Client {
 	ctx := context.Background()
 	u, err := soap.ParseURL(tomlConf.VSphereURL)
@@ -22,11 +23,12 @@ func Connect() *govmomi.Client {
 		panic(err)
 	}
 
-    fmt.Println("Connected to vSphere")
+	fmt.Println("Connected to vSphere")
 
 	return c
 }
 
+// Revert VM based on name
 func Revert(vmName string) error {
 	vm, err := finder.VirtualMachine(ctx, vmName)
 	if err != nil {
@@ -43,21 +45,22 @@ func Revert(vmName string) error {
 		return err
 	}
 
-    task, err = vm.PowerOn(ctx)
-    if err != nil {
-        return err
-    }
+	task, err = vm.PowerOn(ctx)
+	if err != nil {
+		return err
+	}
 
-    err = task.WaitEx(ctx)
-    if err != nil {
-        return err
-    }
+	err = task.WaitEx(ctx)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
+// Get VM names from a prefix (e.g. pod number)
 func GetVMs(team string) ([]string, error) {
-    team = team + "*"
+	team = team + "*"
 
 	vms, err := finder.VirtualMachineList(ctx, team)
 	if err != nil {
