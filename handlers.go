@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+    "log"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -14,7 +15,6 @@ func RevertHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Flags:   discordgo.MessageFlagsEphemeral,
 			Content: "Getting VMs...",
 		},
 	})
@@ -127,10 +127,10 @@ func TeamsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		for _, opt := range options[0].Options {
 			optionMap[opt.Name] = opt
 		}
-		id := optionMap["team-id"]
-		count := optionMap["team-count"]
-		for i := 0; i < count; i++ {
-			createTeam(s, i, id+i)
+		id := int(optionMap["team-id"].IntValue())
+		count := int(optionMap["team-count"].IntValue())
+		for x := 0; x < count; x++ {
+			createTeam(s, i, id+x, *guild)
 		}
 	case "delete":
 		options = options[0].Options
@@ -149,7 +149,7 @@ func TeamsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				optionMap[opt.Name] = opt
 			}
 			role := optionMap["team-role"].RoleValue(s, guild.ID)
-			deleteTeam(s, i, role)
+			deleteTeam(s, i, role, guild)
 		case "all":
 			groles, _ := s.GuildRoles(guild.ID)
 
@@ -165,14 +165,14 @@ func TeamsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			for _, role := range groles {
 				teamNumber := r.Find([]byte(role.Name))
 				if teamNumber != nil {
-					deleteTeam(s, i, role)
+					deleteTeam(s, i, role, guild)
 				}
 			}
 		}
 	}
 }
 
-func createTeam(s *discordgo.Session, i *discordgo.InteractionCreate, id int) {
+func createTeam(s *discordgo.Session, i *discordgo.InteractionCreate, id int, guild discordgo.Guild) {
 	teamName := fmt.Sprintf("Team %d", id)
 
 	// Create team role
@@ -180,18 +180,22 @@ func createTeam(s *discordgo.Session, i *discordgo.InteractionCreate, id int) {
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &msg,
 	})
-	var role, _ = s.GuildRoleCreate(guild.ID)
-	s.GuildRoleEdit(
-		guild.ID,
-		role.ID,
-		teamName,
-		3447003, // blue
-		true,
-		0,
-		true,
-	)
 
-	msg := "Creating category: " + teamName
+    var blue int = 3447003
+    var permissions int64 = 0
+    var hoist bool = true
+    var mentionable bool = true
+    roleParam := discordgo.RoleParams{
+        Name: teamName,
+        Permissions: &permissions,
+        Color: &blue, // blue
+        Hoist: &hoist,
+        Mentionable: &mentionable,
+    }
+
+    role, _ := s.GuildRoleCreate(guild.ID, &roleParam)
+
+	msg = "Creating category: " + teamName
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &msg,
 	})
@@ -214,7 +218,7 @@ func createTeam(s *discordgo.Session, i *discordgo.InteractionCreate, id int) {
 	})
 
 	// Create child channels
-	msg := "Creating channels: " + teamName
+	msg = "Creating channels: " + teamName
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &msg,
 	})
@@ -235,10 +239,11 @@ func createTeam(s *discordgo.Session, i *discordgo.InteractionCreate, id int) {
 	})
 }
 
-func deleteTeam(s *discordgo.Session, i *discordgo.InteractionCreate, role discordgo.GuildRole) {
+func deleteTeam(s *discordgo.Session, i *discordgo.InteractionCreate, role *discordgo.Role, guild *discordgo.Guild) {
 	roles, _ := s.GuildRoles(guild.ID)
 	channels, _ := s.GuildChannels(guild.ID)
 	parent := findChannelByName(s, i, role.Name)
+    teamName := role.Name
 
 	msg := "Deleting channels: " + teamName
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -250,13 +255,13 @@ func deleteTeam(s *discordgo.Session, i *discordgo.InteractionCreate, role disco
 		}
 	}
 
-	msg := "Deleting category: " + teamName
+	msg = "Deleting category: " + teamName
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &msg,
 	})
 	s.ChannelDelete(parent.ID)
 
-	msg := "Deleting role: " + teamName
+	msg = "Deleting role: " + teamName
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &msg,
 	})

@@ -17,21 +17,23 @@ func dbConn() (db *gorm.DB) {
 }
 
 // Increments the revert count for a VM
-func incrementRevertCount(teamID string, vmName string) {
-    var revertCount RevertCount
-    err := db.First(&revertCount)
-    if err != nil {
-        revertCount = RevertCount{TeamID: teamID, VMName: vmName, Count: 0}
+func incrementRevertCount(vmName string) {
+    var revertCount RevertCount 
+    res := db.Model(&RevertCount{VMName: vmName}).First(&revertCount)
+    if res.Error != nil {
+        revertCount = RevertCount{VMName: vmName, Count: 1}
         db.Create(&revertCount)
+        return
     }
+
     revertCount.Count++
     db.Save(&revertCount)
 }
 
 // Gets the revert counts for a Team
-func getRevertCount(teamID string) ([]RevertCount, error) {
+func getRevertCount(teamName string) ([]RevertCount, error) {
     var revertCounts []RevertCount
-    err := db.Find(&revertCounts).Where("team_id = ?", teamID)
+    err := db.Find(&revertCounts).Where("teamname = ?", teamName)
     if err != nil {
         return nil, err.Error
     }

@@ -15,9 +15,10 @@ import (
 )
 
 type RevertCount struct {
-    TeamID string `gorm:"primaryKey"`
-    VMName string
-    Count  int 
+    ID      int `gorm:"primaryKey"`
+    VMName  string
+    TeamName string
+    Count   int 
 }
 
 var (
@@ -70,7 +71,7 @@ func init() {
 
 // db init
 func init() {
-    db := dbConn()
+    db = dbConn()
     db.AutoMigrate(&RevertCount{})
 }
 
