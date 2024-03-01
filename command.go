@@ -11,6 +11,7 @@ var (
 			Description: "Replies with Pong!",
 		},
 
+<<<<<<< HEAD
 		{
 			Name:        "revert",
 			Description: "Reverts a VM",
@@ -72,6 +73,20 @@ var (
 		"revert": RevertHandler,
 		"teams":  TeamsHandler,
 	}
+=======
+        {
+            Name:        "revert",
+            Description: "Reverts a VM",
+        },
+
+    }	
+
+    commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+        "ping":   PingHandler,
+        "revert": RevertHandler,
+        "get-reverts": GetRevertsHandler,
+    }
+>>>>>>> 5a6c5d1 (db stuff)
 
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"revert-vm": RevertVMSelectHandler,

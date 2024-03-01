@@ -8,10 +8,17 @@ import (
 	"os"
 	"os/signal"
 
+    "gorm.io/gorm"
 	"github.com/bwmarrin/discordgo"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 )
+
+type RevertCount struct {
+    TeamID string `gorm:"primaryKey"`
+    VMName string
+    Count  int 
+}
 
 var (
 	GuildID = flag.String("guild", "", "Guild ID")
@@ -22,8 +29,7 @@ var (
 	ctx           = context.Background()
 	finder        = &find.Finder{}
 
-	RevertCounter = map[string]int{}
-	RevertLimit   = 3
+    db *gorm.DB
 )
 
 var s *discordgo.Session
@@ -60,6 +66,12 @@ func init() {
 			}
 		}
 	})
+}
+
+// db init
+func init() {
+    db := dbConn()
+    db.AutoMigrate(&RevertCount{})
 }
 
 func main() {

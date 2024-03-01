@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+    "regexp"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -44,6 +45,10 @@ func Revert(vmName string) error {
 	if err != nil {
 		return err
 	}
+
+    r, err := regexp.Compile(`^\d{4}`)
+    teamNumber := r.Find([]byte(vmName))
+    incrementRevertCount(string(teamNumber), vmName)
 
 	task, err = vm.PowerOn(ctx)
 	if err != nil {
