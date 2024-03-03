@@ -19,18 +19,9 @@ func RevertHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	})
 
-	r, err := regexp.Compile(`\d{4}$`)
-	if err != nil {
-		errMsg := fmt.Sprintf("Error getting team number: %v", err)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &errMsg,
-		})
-		return
-	}
-
-	teamNumber := r.Find([]byte(category.Name))
-	if teamNumber == nil {
-		errMsg := fmt.Sprintf("Error getting team number: %v", err)
+    teamNumber := getTeamName(category)
+	if teamNumber == "" {
+		errMsg := fmt.Sprintf("Unable to get team number from category: %v", category.Name)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content: &errMsg,
 		})
@@ -89,7 +80,7 @@ func RevertVMSelectHandler(s *discordgo.Session, i *discordgo.InteractionCreate)
 		},
 	})
 
-	err := Revert(data.Values[0])
+	revertCount, err := Revert(data.Values[0])
 	if err != nil {
 		errMsg := fmt.Sprintf("Error reverting VM: %v", err)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -98,7 +89,7 @@ func RevertVMSelectHandler(s *discordgo.Session, i *discordgo.InteractionCreate)
 		return
 	}
 
-	success := "VM reverted successfully!"
+	success := "Reverted VM and powered on. Revert count: " + fmt.Sprintf("%d", revertCount)
 
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &success,
@@ -114,13 +105,93 @@ func PingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	})
 }
 
+func GetRevertHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+    channel, _ := s.Channel(i.ChannelID)
+    category, _ := s.Channel(channel.ParentID)
+    options := i.ApplicationCommandData().Options
+    guildRoles, _ := s.GuildRoles(channel.GuildID)
+    s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+        Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+    })
+    switch options[0].Name {
+    case "all":
+        if !isGreenTeam(i.Member, guildRoles) {
+            errMsg := "You do not have permission to use this command"
+            s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+                Content: &errMsg,
+            })
+        }
+
+        reverts := getAllRevertCounts()
+        msg := "Revert counts:\n"
+        for _, r := range reverts {
+            msg += fmt.Sprintf("%s: %d\n", r.VMName, r.Count)
+        }
+
+        s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+            Content: &msg,
+        })
+    case "team":
+        optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption)
+        for _, opt := range options[0].Options {
+            optionMap[opt.Name] = opt
+        }
+        team := optionMap["team-id"].StringValue()
+        
+        teamNumber := getTeamName(category)
+        if teamNumber == "" {
+            errMsg := fmt.Sprintf("Unable to get team number from category: %v", category.Name)
+            s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+                Content: &errMsg,
+            })
+            return
+        }
+
+        if teamNumber != team {
+            errMsg := "You do not have permission list revert counts for this team"
+            s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+                Content: &errMsg,
+            })
+            return
+        }
+
+        revertCount, err := getTeamRevertCount(team)
+        if err != nil {
+            errMsg := fmt.Sprintf("Error getting revert count: %v", err)
+            s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+                Content: &errMsg,
+            })
+            return
+        }
+
+        msg := "Revert counts:\n"
+        for _, r := range revertCount {
+            msg += fmt.Sprintf("%s: %d\n", r.VMName, r.Count)
+        }
+        s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+            Content: &msg,
+        })
+    }
+}
+
+
 func TeamsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	channel, _ := s.Channel(i.ChannelID)
 	guild, _ := s.Guild(channel.GuildID)
 	options := i.ApplicationCommandData().Options
+    guildRoles, _ := s.GuildRoles(channel.GuildID)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
+
+    if !isGreenTeam(i.Member, guildRoles) {
+        errMsg := "You do not have permission to use this command"
+        s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+            Content: &errMsg,
+        })
+        return
+    }
+
 	switch options[0].Name {
 	case "create":
 		optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption)
@@ -284,4 +355,25 @@ func findChannelByName(s *discordgo.Session, i *discordgo.InteractionCreate, cha
 		}
 	}
 	return channel
+}
+
+func getTeamName(category *discordgo.Channel) string {
+	r, _ := regexp.Compile(`\d{4}$`)
+	teamNumber := r.Find([]byte(category.Name))
+    return string(teamNumber)
+}
+
+func isGreenTeam(member *discordgo.Member, roles []*discordgo.Role) bool {
+    greenTeamID := ""
+    for _, r := range roles {
+        if r.Name == "Green Team" {
+            greenTeamID = r.ID
+        }
+    }
+    for _, r := range member.Roles {
+        if r == greenTeamID {
+            return true
+        }
+    }
+    return false
 }

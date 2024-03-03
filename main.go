@@ -15,8 +15,7 @@ import (
 )
 
 type RevertCount struct {
-    ID      int `gorm:"primaryKey"`
-    VMName  string
+    VMName  string `gorm:"primaryKey"`
     TeamName string
     Count   int 
 }

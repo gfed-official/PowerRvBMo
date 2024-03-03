@@ -15,6 +15,33 @@ var (
 			Name:        "revert",
 			Description: "Reverts a VM",
 		},
+
+        {
+            Name:        "get",
+            Description: "Get Reverts",
+            Options: []*discordgo.ApplicationCommandOption{
+                {
+                    Type:        discordgo.ApplicationCommandOptionSubCommand,
+                    Name:        "all",
+                    Description: "Get all reverts",
+                    Required:    false,
+                },
+                {
+                    Type:        discordgo.ApplicationCommandOptionSubCommand,
+                    Name:        "team",
+                    Description: "Get reverts for a team",
+                    Options: []*discordgo.ApplicationCommandOption{
+                        {
+                            Type:        discordgo.ApplicationCommandOptionString,
+                            Name:        "team-id",
+                            Description: "ID of the team",
+                            Required:    true,
+                        },
+                    },
+                },
+            },
+        },
+
 		{
 			Name:        "teams",
 			Description: "Manage team pods",
@@ -71,6 +98,7 @@ var (
 		"ping":   PingHandler,
 		"revert": RevertHandler,
 		"teams":  TeamsHandler,
+        "get":    GetRevertHandler,
 	}
 
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){

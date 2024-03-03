@@ -29,35 +29,35 @@ func Connect() *govmomi.Client {
 }
 
 // Revert VM based on name
-func Revert(vmName string) error {
+func Revert(vmName string) (int, error) {
 	vm, err := finder.VirtualMachine(ctx, vmName)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	task, err := vm.RevertToCurrentSnapshot(ctx, true)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	err = task.WaitEx(ctx)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-    incrementRevertCount(vmName)
+    revertCount := incrementRevertCount(vmName)
 
 	task, err = vm.PowerOn(ctx)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	err = task.WaitEx(ctx)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	return nil
+	return revertCount, nil
 }
 
 // Get VM names from a prefix (e.g. pod number)
